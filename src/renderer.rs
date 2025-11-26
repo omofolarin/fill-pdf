@@ -211,7 +211,8 @@ impl PdfFieldRenderer {
             pdf_y
         };
         
-        let char_width = base_font_size * 0.5;
+        // Use srv-ocr's more accurate char width calculation (0.55 instead of 0.5)
+        let char_width = base_font_size * 0.55;
         let text_width = text.len() as f32 * char_width;
         
         if text_width <= width {
@@ -227,7 +228,7 @@ impl PdfFieldRenderer {
             return;
         }
         
-        let reduced_char_width = reduced_font_size * 0.5;
+        let reduced_char_width = reduced_font_size * 0.55;
         let reduced_text_width = text.len() as f32 * reduced_char_width;
         
         if reduced_text_width <= width {
@@ -254,27 +255,14 @@ impl PdfFieldRenderer {
             return;
         }
         
-        let chars_per_line = (width / char_width).floor() as usize;
+        // Multi-line with word wrapping (srv-ocr approach)
+        let line_height = base_font_size * 1.2;
+        let max_lines = (height / line_height).floor() as usize;
         
-        if chars_per_line > 0 {
-            let line_height = base_font_size * 1.2;
-            let max_lines = (height / line_height).floor() as usize;
+        if max_lines > 0 {
+            let lines = self.word_wrap(&text, width, base_font_size);
             
-            let mut lines = Vec::new();
-            let mut remaining = text.as_str();
-            
-            while !remaining.is_empty() && lines.len() < max_lines {
-                let split_at = remaining.char_indices()
-                    .nth(chars_per_line)
-                    .map(|(i, _)| i)
-                    .unwrap_or(remaining.len());
-                
-                let (line, rest) = remaining.split_at(split_at);
-                lines.push(line);
-                remaining = rest;
-            }
-            
-            if remaining.is_empty() {
+            if lines.len() <= max_lines {
                 content.set_font(self.font_name, base_font_size);
                 
                 let total_text_height = lines.len() as f32 * line_height;
@@ -304,9 +292,50 @@ impl PdfFieldRenderer {
             }
         }
         
+        // Fallback: render as-is if nothing else works
         content.set_font(self.font_name, base_font_size);
         content.next_line(pdf_x, pdf_y);
         content.show(Str(text.as_bytes()));
+    }
+
+    fn word_wrap(&self, text: &str, width: f32, font_size: f32) -> Vec<String> {
+        let char_width = font_size * 0.55;
+        let max_chars_per_line = (width / char_width) as usize;
+        
+        if max_chars_per_line == 0 {
+            return vec![text.to_string()];
+        }
+        
+        let words: Vec<&str> = text.split_whitespace().collect();
+        let mut lines = Vec::new();
+        let mut current_line = String::new();
+        
+        for word in words {
+            let test_line = if current_line.is_empty() {
+                word.to_string()
+            } else {
+                format!("{} {}", current_line, word)
+            };
+            
+            if test_line.len() <= max_chars_per_line {
+                current_line = test_line;
+            } else {
+                if !current_line.is_empty() {
+                    lines.push(current_line);
+                }
+                current_line = word.to_string();
+            }
+        }
+        
+        if !current_line.is_empty() {
+            lines.push(current_line);
+        }
+        
+        if lines.is_empty() {
+            vec![text.to_string()]
+        } else {
+            lines
+        }
     }
 
     fn create_checkbox_field(&mut self, field: &FieldData, page_info: &crate::types::PdfPageInfo) -> anyhow::Result<Ref> {
