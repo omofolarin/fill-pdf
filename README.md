@@ -442,7 +442,6 @@ Based on srv-ocr's PDF filling implementation:
 
 ## Limitations
 
-- Signature images are rendered as placeholders (full image embedding requires additional PDF operations)
 - No custom font support (uses Helvetica and ZapfDingbats)
 - No form validation
 - No field dependencies or calculations
