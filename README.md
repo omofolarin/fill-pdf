@@ -101,21 +101,6 @@ fill-pdf fill --template '{"url":"https://api.example.com/template.pdf","headers
 # Use it:
 fill-pdf fill --template "$(cat template_config.json)" --data fields.json --output filled.pdf
 ```
-fill-pdf fill \
-  --template "https://api.example.com/templates/form.pdf" \
-  --data fields.json \
-  --output filled.pdf
-```
-
-### With Authentication
-
-```bash
-# Template URL can include query parameters or use authenticated endpoints
-fill-pdf fill \
-  --template "https://api.example.com/templates/form.pdf?token=xyz" \
-  --data fields_with_url_images.json \
-  --output filled.pdf
-```
 
 ## JSON Data Format
 
@@ -258,7 +243,32 @@ fill-pdf fill \
       "user_id": "123",
       "format": "png"
     }
-  }
+  },
+  "fit_mode": "contain"
+}
+```
+
+### Image Fit Modes
+
+Control how images are scaled within their bounding box:
+
+- `fill` - Stretch to fill entire box (may distort aspect ratio)
+- `contain` (default) - Scale to fit within box, maintaining aspect ratio
+- `cover` - Scale to cover entire box, maintaining aspect ratio (may crop)
+- `scale_down` - Only scale down if larger than box, never scale up
+
+Example:
+```json
+{
+  "field_id": "photo",
+  "page": 0,
+  "x": 100.0,
+  "y": 300.0,
+  "width": 200.0,
+  "height": 200.0,
+  "field_type": "image",
+  "value": "base64_image_data...",
+  "fit_mode": "cover"
 }
 ```
 
@@ -291,7 +301,7 @@ fill-pdf fill \
 - ✅ Custom cache directory
 - ✅ Cache management commands
 
-See [CACHING.md](CACHING.md) for detailed documentation.
+See [docs/CACHING.md](docs/CACHING.md) for detailed documentation.
 
 ### Text Rendering
 - ✅ Auto font-size reduction (90% if text doesn't fit)
@@ -312,11 +322,12 @@ See [CACHING.md](CACHING.md) for detailed documentation.
 
 ### Image/Signature Sources
 - ✅ Base64 encoded images (PNG, JPEG, WebP, GIF, BMP)
-- ✅ Remote images via URL
-- ✅ Authenticated image endpoints (headers, POST body)
+- ✅ Remote images via URL (simple GET or authenticated endpoints)
+- ✅ Authenticated image endpoints (custom headers, POST body)
 - ✅ Multiple HTTP methods (GET, POST, PUT, PATCH)
 - ✅ Custom headers and request bodies
 - ✅ Full PDF image embedding (XObject with DCT compression)
+- ✅ Aspect ratio preservation with fit modes (fill, contain, cover, scale_down)
 
 ## Complete Example
 
