@@ -85,6 +85,10 @@ enum Commands {
         #[arg(long, default_value = "300")]
         dpi: u32,
         
+        /// Specific pages to convert (e.g., "1,3,5" or "1-3,5")
+        #[arg(short, long)]
+        pages: Option<String>,
+        
         /// Output as base64 encoded strings (prints to stdout)
         #[arg(long)]
         base64: bool,
@@ -115,8 +119,8 @@ async fn main() -> anyhow::Result<()> {
         Commands::Fill { template, data, output, metadata, cache, cache_dir, cache_ttl, cache_refresh, keep_fields, merge_backend, text_overflow } => {
             fill_pdf(template, data, output, metadata, cache, cache_dir, cache_ttl, cache_refresh, keep_fields, merge_backend, text_overflow).await?;
         }
-        Commands::ToImage { pdfs, output_dir, format, dpi, base64 } => {
-            pdf_to_images(pdfs, output_dir, format, dpi, base64).await?;
+        Commands::ToImage { pdfs, output_dir, format, dpi, pages, base64 } => {
+            pdf_to_images(pdfs, output_dir, format, dpi, pages, base64).await?;
         }
         Commands::Cache { command } => {
             match command {
@@ -305,6 +309,7 @@ async fn pdf_to_images(
     output_dir: Option<PathBuf>,
     format: String,
     dpi: u32,
+    pages: Option<String>,
     base64: bool,
 ) -> anyhow::Result<()> {
     use std::process::Command;
@@ -334,6 +339,13 @@ async fn pdf_to_images(
         println!("🖼️  Converting {} PDF(s) to {} images at {} DPI...", pdfs.len(), format.to_uppercase(), dpi);
     }
     
+    // Parse page selection if provided
+    let page_list = if let Some(ref pages_str) = pages {
+        Some(parse_page_selection(pages_str)?)
+    } else {
+        None
+    };
+    
     for pdf_path in pdfs {
         if !pdf_path.exists() {
             eprintln!("⚠️  Skipping non-existent file: {}", pdf_path.display());
@@ -350,6 +362,15 @@ async fn pdf_to_images(
         
         let pdf_str = pdf_path.display().to_string();
         
+        // Build page selection parameter for Python
+        let page_param = if let Some(ref pages) = page_list {
+            format!("first_page={}, last_page={}", 
+                pages.iter().min().unwrap_or(&1),
+                pages.iter().max().unwrap_or(&999))
+        } else {
+            String::new()
+        };
+        
         // Build Python script
         let script = if base64 {
             format!(
@@ -361,13 +382,16 @@ import sys
 import json
 
 try:
-    images = convert_from_path('{}', dpi={}, fmt='{}')
+    images = convert_from_path('{}', dpi={}, fmt='{}'{})
     result = []
+    page_filter = {}
     for i, image in enumerate(images):
-        buffer = io.BytesIO()
-        image.save(buffer, format='{}')
-        b64 = base64.b64encode(buffer.getvalue()).decode('utf-8')
-        result.append({{'page': i + 1, 'data': b64}})
+        page_num = i + 1
+        if page_filter is None or page_num in page_filter:
+            buffer = io.BytesIO()
+            image.save(buffer, format='{}')
+            b64 = base64.b64encode(buffer.getvalue()).decode('utf-8')
+            result.append({{'page': page_num, 'data': b64}})
     print(json.dumps(result))
 except Exception as e:
     print('✗ Error: {{}}'.format(e), file=sys.stderr)
@@ -376,6 +400,12 @@ except Exception as e:
                 pdf_str,
                 dpi,
                 img_format,
+                if !page_param.is_empty() { format!(", {}", page_param) } else { String::new() },
+                if let Some(ref pages) = page_list {
+                    format!("{:?}", pages)
+                } else {
+                    "None".to_string()
+                },
                 format.to_uppercase()
             )
         } else {
@@ -386,11 +416,16 @@ from pdf2image import convert_from_path
 import sys
 
 try:
-    images = convert_from_path('{}', dpi={}, fmt='{}')
+    images = convert_from_path('{}', dpi={}, fmt='{}'{})
+    page_filter = {}
+    saved = 0
     for i, image in enumerate(images):
-        output_path = '{}/{}_{{:03d}}.{}'.format(i + 1)
-        image.save(output_path, '{}', optimize=True)
-    print('✓ Converted {{}} page(s)'.format(len(images)))
+        page_num = i + 1
+        if page_filter is None or page_num in page_filter:
+            output_path = '{}/{}_{{:03d}}.{}'.format(page_num)
+            image.save(output_path, '{}', optimize=True)
+            saved += 1
+    print('✓ Converted {{}} page(s)'.format(saved))
 except Exception as e:
     print('✗ Error: {{}}'.format(e), file=sys.stderr)
     sys.exit(1)
@@ -398,6 +433,12 @@ except Exception as e:
                 pdf_str,
                 dpi,
                 img_format,
+                if !page_param.is_empty() { format!(", {}", page_param) } else { String::new() },
+                if let Some(ref pages) = page_list {
+                    format!("{:?}", pages)
+                } else {
+                    "None".to_string()
+                },
                 output_str,
                 pdf_name,
                 img_format,
@@ -495,4 +536,47 @@ async fn check_pdf_to_image_deps() -> anyhow::Result<()> {
     }
     
     Ok(())
+}
+
+/// Parse page selection string (e.g., "1,3,5" or "1-3,5")
+fn parse_page_selection(pages_str: &str) -> anyhow::Result<Vec<usize>> {
+    let mut pages = Vec::new();
+    
+    for part in pages_str.split(',') {
+        let part = part.trim();
+        if part.is_empty() {
+            continue;
+        }
+        
+        if part.contains('-') {
+            // Range: "1-3"
+            let range_parts: Vec<&str> = part.split('-').collect();
+            if range_parts.len() != 2 {
+                anyhow::bail!("Invalid page range: {}", part);
+            }
+            
+            let start: usize = range_parts[0].parse()
+                .map_err(|_| anyhow::anyhow!("Invalid page number: {}", range_parts[0]))?;
+            let end: usize = range_parts[1].parse()
+                .map_err(|_| anyhow::anyhow!("Invalid page number: {}", range_parts[1]))?;
+            
+            if start > end {
+                anyhow::bail!("Invalid range: {} (start > end)", part);
+            }
+            
+            for page in start..=end {
+                pages.push(page);
+            }
+        } else {
+            // Single page: "5"
+            let page: usize = part.parse()
+                .map_err(|_| anyhow::anyhow!("Invalid page number: {}", part))?;
+            pages.push(page);
+        }
+    }
+    
+    pages.sort();
+    pages.dedup();
+    
+    Ok(pages)
 }
