@@ -297,22 +297,16 @@ impl PdfFieldRenderer {
         
         // Fallback: render as-is (overflow) or truncate (cutoff)
         let final_text = if use_cutoff {
-            // Truncate text to fit maximum characters within width
-            // Use 0.6 multiplier for Helvetica average character width
-            let cutoff_char_width = base_font_size * 0.6;
-            let mut truncated = String::new();
-            let mut current_width = 0.0;
+            // Calculate maximum characters that fit within width
+            // For Helvetica, use 0.5 multiplier (more aggressive fitting)
+            let cutoff_char_width = base_font_size * 0.5;
+            let max_chars = (width / cutoff_char_width).floor() as usize;
             
-            for ch in text.chars() {
-                let next_width = current_width + cutoff_char_width;
-                // Only break if adding this character would exceed the boundary
-                if next_width > width && !truncated.is_empty() {
-                    break;
-                }
-                truncated.push(ch);
-                current_width = next_width;
+            if text.len() > max_chars {
+                text.chars().take(max_chars).collect()
+            } else {
+                text
             }
-            truncated
         } else {
             text
         };
