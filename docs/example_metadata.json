@@ -1,0 +1,24 @@
+{
+  "pages": [
+    {
+      "pageNumber": 0,
+      "width": 612.0,
+      "height": 792.0,
+      "fieldsCount": 8
+    },
+    {
+      "pageNumber": 1,
+      "width": 612.0,
+      "height": 792.0,
+      "fieldsCount": 3
+    }
+  ],
+  "fieldsProcessed": 10,
+  "fieldsSkipped": 1,
+  "warnings": [
+    "Skipped URL image for field signature_1"
+  ],
+  "errors": [
+    "Failed to decode image photo_2: Invalid base64 encoding"
+  ]
+}

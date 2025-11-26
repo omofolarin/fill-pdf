@@ -1,0 +1,12 @@
+{
+  "name": "fill-pdf-merge",
+  "version": "1.0.0",
+  "description": "PDF merging with pdf-lib (Bun runtime)",
+  "type": "module",
+  "dependencies": {
+    "pdf-lib": "^1.17.1"
+  },
+  "scripts": {
+    "merge": "bun run merge_pdfs.ts"
+  }
+}

@@ -1,0 +1,137 @@
+[
+  {
+    "field_id": "full_name",
+    "page": 0,
+    "x": 150.0,
+    "y": 100.0,
+    "width": 300.0,
+    "height": 25.0,
+    "field_type": "text",
+    "value": "John Michael Doe",
+    "font_size": 14.0,
+    "alignment": "left",
+    "vertical_alignment": "middle"
+  },
+  {
+    "field_id": "email",
+    "page": 0,
+    "x": 150.0,
+    "y": 140.0,
+    "width": 300.0,
+    "height": 20.0,
+    "field_type": "text",
+    "value": "john.doe@example.com",
+    "font_size": 12.0,
+    "alignment": "left"
+  },
+  {
+    "field_id": "phone",
+    "page": 0,
+    "x": 150.0,
+    "y": 170.0,
+    "width": 200.0,
+    "height": 20.0,
+    "field_type": "text",
+    "value": "+1 (555) 123-4567",
+    "font_size": 12.0
+  },
+  {
+    "field_id": "age",
+    "page": 0,
+    "x": 150.0,
+    "y": 200.0,
+    "width": 80.0,
+    "height": 20.0,
+    "field_type": "number",
+    "value": 35,
+    "font_size": 12.0
+  },
+  {
+    "field_id": "birthdate",
+    "page": 0,
+    "x": 250.0,
+    "y": 200.0,
+    "width": 120.0,
+    "height": 20.0,
+    "field_type": "date",
+    "value": "01/15/1990",
+    "font_size": 12.0
+  },
+  {
+    "field_id": "address",
+    "page": 0,
+    "x": 150.0,
+    "y": 230.0,
+    "width": 300.0,
+    "height": 40.0,
+    "field_type": "text",
+    "value": "123 Main Street, Apartment 4B, Springfield, IL 62701",
+    "font_size": 11.0,
+    "alignment": "left",
+    "vertical_alignment": "top"
+  },
+  {
+    "field_id": "terms_accepted",
+    "page": 0,
+    "x": 150.0,
+    "y": 290.0,
+    "width": 15.0,
+    "height": 15.0,
+    "field_type": "checkbox",
+    "value": true
+  },
+  {
+    "field_id": "newsletter_opt_in",
+    "page": 0,
+    "x": 150.0,
+    "y": 320.0,
+    "width": 15.0,
+    "height": 15.0,
+    "field_type": "checkbox",
+    "value": false
+  },
+  {
+    "field_id": "gender_male",
+    "page": 0,
+    "x": 150.0,
+    "y": 350.0,
+    "width": 15.0,
+    "height": 15.0,
+    "field_type": "radio",
+    "value": "male"
+  },
+  {
+    "field_id": "gender_female",
+    "page": 0,
+    "x": 200.0,
+    "y": 350.0,
+    "width": 15.0,
+    "height": 15.0,
+    "field_type": "radio",
+    "value": ""
+  },
+  {
+    "field_id": "country",
+    "page": 0,
+    "x": 150.0,
+    "y": 380.0,
+    "width": 200.0,
+    "height": 20.0,
+    "field_type": "dropdown",
+    "value": "United States",
+    "options": ["United States", "Canada", "Mexico", "United Kingdom"]
+  },
+  {
+    "field_id": "comments",
+    "page": 0,
+    "x": 150.0,
+    "y": 420.0,
+    "width": 300.0,
+    "height": 80.0,
+    "field_type": "text",
+    "value": "This is a multi-line comment field that demonstrates text wrapping. The text will automatically wrap to fit within the specified width and height boundaries.",
+    "font_size": 10.0,
+    "alignment": "left",
+    "vertical_alignment": "top"
+  }
+]

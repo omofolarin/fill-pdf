@@ -1,4 +1,31 @@
-/target
+# Rust
+/target/
+**/*.rs.bk
 Cargo.lock
-*.pdf
-*.json
+
+# Node/Bun
+node_modules/
+bun.lockb
+*.log
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Temp files
+*.tmp
+*.temp

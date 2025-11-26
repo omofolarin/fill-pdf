@@ -1,0 +1,73 @@
+[
+  {
+    "field_id": "full_name",
+    "page": 0,
+    "x": 150.0,
+    "y": 100.0,
+    "width": 300.0,
+    "height": 25.0,
+    "field_type": "text",
+    "value": "John Michael Doe",
+    "font_size": 14.0,
+    "alignment": "left",
+    "vertical_alignment": "middle"
+  },
+  {
+    "field_id": "company_logo",
+    "page": 0,
+    "x": 50.0,
+    "y": 50.0,
+    "width": 100.0,
+    "height": 100.0,
+    "field_type": "signature",
+    "value": {
+      "url": "https://example.com/api/logos/company.png",
+      "headers": {
+        "X-API-Key": "your-api-key-here"
+      }
+    }
+  },
+  {
+    "field_id": "user_signature",
+    "page": 0,
+    "x": 100.0,
+    "y": 500.0,
+    "width": 150.0,
+    "height": 50.0,
+    "field_type": "signature",
+    "value": {
+      "url": "https://api.signatures.com/generate",
+      "method": "POST",
+      "headers": {
+        "Authorization": "Bearer your-token-here",
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "user_id": "123",
+        "text": "John Doe",
+        "style": "cursive",
+        "format": "png"
+      }
+    }
+  },
+  {
+    "field_id": "stamp_base64",
+    "page": 0,
+    "x": 400.0,
+    "y": 500.0,
+    "width": 80.0,
+    "height": 80.0,
+    "field_type": "signature",
+    "value": "iVBORw0KGgoAAAANSUhEUgAAAAUA..."
+  },
+  {
+    "field_id": "terms_accepted",
+    "page": 0,
+    "x": 150.0,
+    "y": 600.0,
+    "width": 15.0,
+    "height": 15.0,
+    "field_type": "checkbox",
+    "value": true
+  }
+]

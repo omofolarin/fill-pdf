@@ -1,0 +1,12 @@
+{
+  "url": "https://api.example.com/templates/form.pdf",
+  "method": "POST",
+  "headers": {
+    "Authorization": "Bearer your-token-here",
+    "X-API-Key": "your-api-key"
+  },
+  "body": {
+    "template_id": "form-123",
+    "version": "latest"
+  }
+}
