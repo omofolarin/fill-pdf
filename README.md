@@ -66,6 +66,38 @@ fill-pdf fill --template template.pdf --data fields.json --output filled.pdf
 
 # Keep interactive form fields
 fill-pdf fill --template template.pdf --data fields.json --output filled.pdf --keep-fields
+
+# Control text overflow behavior
+fill-pdf fill --template template.pdf --data fields.json --output filled.pdf --text-overflow cutoff
+```
+
+### Text Overflow Modes
+
+Control how text is rendered when it doesn't fit within field boundaries:
+
+```bash
+# overflow (default): Text can extend beyond field boundaries
+fill-pdf fill --template template.pdf --data fields.json --output filled.pdf
+
+# cutoff: Text is truncated at field boundaries
+fill-pdf fill --template template.pdf --data fields.json --output filled.pdf --text-overflow cutoff
+```
+
+**Field-level override** (takes precedence over global flag):
+```json
+[
+  {
+    "field_id": "name",
+    "page": 1,
+    "x": 50,
+    "y": 100,
+    "width": 200,
+    "height": 20,
+    "field_type": "text",
+    "value": "Very long text that might overflow",
+    "text_overflow": "cutoff"
+  }
+]
 ```
 
 ### With Metadata Output
