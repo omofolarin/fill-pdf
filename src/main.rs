@@ -67,6 +67,29 @@ enum Commands {
         text_overflow: String,
     },
     
+    /// Convert PDF pages to images (PNG/JPEG)
+    ToImage {
+        /// Input PDF file(s)
+        #[arg(required = true)]
+        pdfs: Vec<PathBuf>,
+        
+        /// Output directory for images
+        #[arg(short, long)]
+        output_dir: Option<PathBuf>,
+        
+        /// Image format: png or jpeg
+        #[arg(short, long, default_value = "png")]
+        format: String,
+        
+        /// DPI resolution (default: 300)
+        #[arg(long, default_value = "300")]
+        dpi: u32,
+        
+        /// Output as base64 encoded strings (prints to stdout)
+        #[arg(long)]
+        base64: bool,
+    },
+    
     /// Cache management
     Cache {
         #[command(subcommand)]
@@ -91,6 +114,9 @@ async fn main() -> anyhow::Result<()> {
     match cli.command {
         Commands::Fill { template, data, output, metadata, cache, cache_dir, cache_ttl, cache_refresh, keep_fields, merge_backend, text_overflow } => {
             fill_pdf(template, data, output, metadata, cache, cache_dir, cache_ttl, cache_refresh, keep_fields, merge_backend, text_overflow).await?;
+        }
+        Commands::ToImage { pdfs, output_dir, format, dpi, base64 } => {
+            pdf_to_images(pdfs, output_dir, format, dpi, base64).await?;
         }
         Commands::Cache { command } => {
             match command {
@@ -272,4 +298,201 @@ async fn validate_cache(
             fetcher::validate_cache(&config, entry.etag.as_deref(), entry.last_modified.as_deref()).await
         }
     }
+}
+
+async fn pdf_to_images(
+    pdfs: Vec<PathBuf>,
+    output_dir: Option<PathBuf>,
+    format: String,
+    dpi: u32,
+    base64: bool,
+) -> anyhow::Result<()> {
+    use std::process::Command;
+    
+    // Validate format
+    let format_lower = format.to_lowercase();
+    if format_lower != "png" && format_lower != "jpeg" && format_lower != "jpg" {
+        anyhow::bail!("Invalid format: {}. Use 'png' or 'jpeg'", format);
+    }
+    
+    let img_format = if format_lower == "jpg" { "jpeg" } else { &format_lower };
+    
+    // Validate output_dir if not base64
+    if !base64 && output_dir.is_none() {
+        anyhow::bail!("--output-dir is required when not using --base64");
+    }
+    
+    // Check and install dependencies
+    check_pdf_to_image_deps().await?;
+    
+    // Create output directory if needed
+    if let Some(ref dir) = output_dir {
+        std::fs::create_dir_all(dir)?;
+    }
+    
+    if !base64 {
+        println!("🖼️  Converting {} PDF(s) to {} images at {} DPI...", pdfs.len(), format.to_uppercase(), dpi);
+    }
+    
+    for pdf_path in pdfs {
+        if !pdf_path.exists() {
+            eprintln!("⚠️  Skipping non-existent file: {}", pdf_path.display());
+            continue;
+        }
+        
+        let pdf_name = pdf_path.file_stem()
+            .and_then(|s| s.to_str())
+            .unwrap_or("output");
+        
+        if !base64 {
+            println!("  📄 Processing: {}", pdf_path.display());
+        }
+        
+        let pdf_str = pdf_path.display().to_string();
+        
+        // Build Python script
+        let script = if base64 {
+            format!(
+                r#"
+from pdf2image import convert_from_path
+import base64
+import io
+import sys
+import json
+
+try:
+    images = convert_from_path('{}', dpi={}, fmt='{}')
+    result = []
+    for i, image in enumerate(images):
+        buffer = io.BytesIO()
+        image.save(buffer, format='{}')
+        b64 = base64.b64encode(buffer.getvalue()).decode('utf-8')
+        result.append({{'page': i + 1, 'data': b64}})
+    print(json.dumps(result))
+except Exception as e:
+    print('✗ Error: {{}}'.format(e), file=sys.stderr)
+    sys.exit(1)
+"#,
+                pdf_str,
+                dpi,
+                img_format,
+                format.to_uppercase()
+            )
+        } else {
+            let output_str = output_dir.as_ref().unwrap().display().to_string();
+            format!(
+                r#"
+from pdf2image import convert_from_path
+import sys
+
+try:
+    images = convert_from_path('{}', dpi={}, fmt='{}')
+    for i, image in enumerate(images):
+        output_path = '{}/{}_{{:03d}}.{}'.format(i + 1)
+        image.save(output_path, '{}', optimize=True)
+    print('✓ Converted {{}} page(s)'.format(len(images)))
+except Exception as e:
+    print('✗ Error: {{}}'.format(e), file=sys.stderr)
+    sys.exit(1)
+"#,
+                pdf_str,
+                dpi,
+                img_format,
+                output_str,
+                pdf_name,
+                img_format,
+                format.to_uppercase()
+            )
+        };
+        
+        let output = Command::new("python3")
+            .arg("-c")
+            .arg(&script)
+            .output()?;
+        
+        if !output.status.success() {
+            let error = String::from_utf8_lossy(&output.stderr);
+            eprintln!("  ✗ Failed: {}", error);
+            continue;
+        }
+        
+        if base64 {
+            // Print base64 output directly
+            print!("{}", String::from_utf8_lossy(&output.stdout));
+        } else {
+            print!("  {}", String::from_utf8_lossy(&output.stdout));
+        }
+    }
+    
+    if !base64 {
+        println!("\n✅ Images saved to: {}", output_dir.unwrap().display());
+    }
+    
+    Ok(())
+}
+
+async fn check_pdf_to_image_deps() -> anyhow::Result<()> {
+    use std::process::Command;
+    
+    // Check if pdf2image is installed
+    let check_pdf2image = Command::new("python3")
+        .arg("-c")
+        .arg("import pdf2image")
+        .output()?;
+    
+    if !check_pdf2image.status.success() {
+        println!("📦 Installing pdf2image...");
+        let install = Command::new("pip3")
+            .args(&["install", "pdf2image", "--break-system-packages"])
+            .output()?;
+        
+        if !install.status.success() {
+            anyhow::bail!("Failed to install pdf2image. Please run: pip3 install pdf2image");
+        }
+        println!("✓ pdf2image installed");
+    }
+    
+    // Check if poppler is installed
+    let check_poppler = Command::new("which")
+        .arg("pdftoppm")
+        .output()?;
+    
+    if !check_poppler.status.success() {
+        println!("📦 Installing poppler...");
+        
+        // Detect OS and install poppler
+        #[cfg(target_os = "macos")]
+        {
+            let install = Command::new("brew")
+                .args(&["install", "poppler"])
+                .output()?;
+            
+            if !install.status.success() {
+                anyhow::bail!("Failed to install poppler. Please run: brew install poppler");
+            }
+        }
+        
+        #[cfg(target_os = "linux")]
+        {
+            // Try apt-get first (Ubuntu/Debian)
+            let install = Command::new("sudo")
+                .args(&["apt-get", "install", "-y", "poppler-utils"])
+                .output();
+            
+            if install.is_err() || !install.unwrap().status.success() {
+                // Try yum (RHEL/CentOS)
+                let install = Command::new("sudo")
+                    .args(&["yum", "install", "-y", "poppler-utils"])
+                    .output()?;
+                
+                if !install.status.success() {
+                    anyhow::bail!("Failed to install poppler. Please run: sudo apt-get install poppler-utils");
+                }
+            }
+        }
+        
+        println!("✓ poppler installed");
+    }
+    
+    Ok(())
 }

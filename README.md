@@ -83,6 +83,20 @@ fill-pdf fill --template template.pdf --data fields.json --output filled.pdf
 fill-pdf fill --template template.pdf --data fields.json --output filled.pdf --text-overflow cutoff
 ```
 
+**When to use each mode:**
+
+- **`overflow` (default)**: 
+  - Best for forms where complete data preservation is critical
+  - Full text remains extractable even if visually cut off
+  - Useful for legal documents, contracts, or data archival
+  - Example: Long addresses, detailed descriptions, legal disclaimers
+
+- **`cutoff`**: 
+  - Best for forms with strict visual requirements
+  - Ensures what you see matches what's stored in the PDF
+  - Useful for printed forms, official documents, or fixed-format templates
+  - Example: Name fields, short codes, standardized forms
+
 **Field-level override** (takes precedence over global flag):
 ```json
 [
@@ -99,6 +113,35 @@ fill-pdf fill --template template.pdf --data fields.json --output filled.pdf --t
   }
 ]
 ```
+
+### Convert PDFs to Images
+
+Convert filled PDFs to PNG/JPEG images for visual analysis or AI processing (e.g., Gemini, GPT-4 Vision):
+
+```bash
+# Single PDF to PNG (300 DPI - recommended for OCR/AI)
+fill-pdf to-image filled.pdf --output-dir ./images --format png
+
+# Multiple PDFs at once
+fill-pdf to-image filled1.pdf filled2.pdf filled3.pdf --output-dir ./images
+
+# JPEG format with custom DPI
+fill-pdf to-image filled.pdf --output-dir ./images --format jpeg --dpi 150
+```
+
+**Output naming:** `{pdf-name}_{page-number}.{format}`
+- Example: `filled_001.png`, `filled_002.png`
+
+**Requirements:**
+- Python 3 with `pdf2image` package: `pip install pdf2image`
+- Poppler utilities: `brew install poppler` (macOS) or `apt-get install poppler-utils` (Ubuntu)
+
+**Use cases:**
+- Visual verification of filled forms
+- AI-based text extraction (Gemini, GPT-4 Vision)
+- OCR processing
+- Thumbnail generation
+- Print preview
 
 ### With Metadata Output
 
