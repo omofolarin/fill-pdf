@@ -57,6 +57,10 @@ enum Commands {
         /// Keep interactive form fields (default: flatten)
         #[arg(long)]
         keep_fields: bool,
+        
+        /// Merge backend: python (PyPDF2) or bun (pdf-lib)
+        #[arg(long, default_value = "python")]
+        merge_backend: String,
     },
     
     /// Cache management
@@ -81,8 +85,8 @@ async fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();
 
     match cli.command {
-        Commands::Fill { template, data, output, metadata, cache, cache_dir, cache_ttl, cache_refresh, keep_fields } => {
-            fill_pdf(template, data, output, metadata, cache, cache_dir, cache_ttl, cache_refresh, keep_fields).await?;
+        Commands::Fill { template, data, output, metadata, cache, cache_dir, cache_ttl, cache_refresh, keep_fields, merge_backend } => {
+            fill_pdf(template, data, output, metadata, cache, cache_dir, cache_ttl, cache_refresh, keep_fields, merge_backend).await?;
         }
         Commands::Cache { command } => {
             match command {
@@ -108,9 +112,10 @@ async fn fill_pdf(
     cache_ttl: Option<i64>,
     cache_refresh: bool,
     keep_fields: bool,
+    merge_backend: String,
 ) -> anyhow::Result<()> {
     // Check dependencies first
-    merge::ensure_dependencies()?;
+    merge::ensure_dependencies(&merge_backend)?;
     
     // Parse template source
     let template_source: TemplateSource = if template.starts_with('{') {
@@ -185,7 +190,7 @@ async fn fill_pdf(
     let (filled_pdf, metadata) = renderer.create_populated_form(&field_data, &pdf_info).await?;
     
     // Merge with template
-    let final_pdf = merge::merge_pdfs_bytes(&template_bytes, &filled_pdf, !keep_fields)?;
+    let final_pdf = merge::merge_pdfs_bytes(&template_bytes, &filled_pdf, !keep_fields, &merge_backend)?;
     
     // Save output
     std::fs::write(&output, final_pdf)?;

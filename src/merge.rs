@@ -1,7 +1,15 @@
 use std::process::Command;
 use std::io::{self, Write};
 
-pub fn ensure_dependencies() -> anyhow::Result<()> {
+pub fn ensure_dependencies(backend: &str) -> anyhow::Result<()> {
+    match backend {
+        "python" => ensure_python_deps(),
+        "bun" => ensure_bun_deps(),
+        _ => anyhow::bail!("Unknown backend: {}. Use 'python' or 'bun'", backend),
+    }
+}
+
+fn ensure_python_deps() -> anyhow::Result<()> {
     // Check Python3
     if !check_python3() {
         anyhow::bail!("Python 3 is not installed. Please install Python 3 first.");
@@ -23,6 +31,17 @@ pub fn ensure_dependencies() -> anyhow::Result<()> {
         }
     }
     
+    Ok(())
+}
+
+fn ensure_bun_deps() -> anyhow::Result<()> {
+    // Check Bun
+    if !check_bun() {
+        anyhow::bail!("Bun is not installed. Install from: https://bun.sh");
+    }
+    
+    // Check pdf-lib (will auto-install via bun)
+    println!("✓ Bun runtime available");
     Ok(())
 }
 
@@ -78,7 +97,22 @@ fn install_pypdf2() -> anyhow::Result<()> {
     )
 }
 
-pub fn merge_pdfs_bytes(template_bytes: &[u8], overlay_pdf: &[u8], flatten: bool) -> anyhow::Result<Vec<u8>> {
+pub fn merge_pdfs_bytes(template_bytes: &[u8], overlay_pdf: &[u8], flatten: bool, backend: &str) -> anyhow::Result<Vec<u8>> {
+    let start = std::time::Instant::now();
+    
+    let result = if backend == "bun" {
+        merge_with_bun(template_bytes, overlay_pdf, flatten)?
+    } else {
+        merge_with_python(template_bytes, overlay_pdf, flatten)?
+    };
+    
+    let duration = start.elapsed();
+    println!("⏱️  Merge completed in {:.2}ms using {}", duration.as_secs_f64() * 1000.0, backend);
+    
+    Ok(result)
+}
+
+fn merge_with_python(template_bytes: &[u8], overlay_pdf: &[u8], flatten: bool) -> anyhow::Result<Vec<u8>> {
     let temp_dir = std::env::temp_dir();
     let temp_template = temp_dir.join("fill_pdf_template.pdf");
     let temp_overlay = temp_dir.join("fill_pdf_overlay.pdf");
@@ -144,4 +178,50 @@ except Exception as e:
     let _ = std::fs::remove_file(&temp_merged);
     
     Ok(merged)
+}
+
+fn merge_with_bun(template_bytes: &[u8], overlay_pdf: &[u8], flatten: bool) -> anyhow::Result<Vec<u8>> {
+    let temp_dir = std::env::temp_dir();
+    let temp_template = temp_dir.join("fill_pdf_template_bun.pdf");
+    let temp_overlay = temp_dir.join("fill_pdf_overlay_bun.pdf");
+    let temp_merged = temp_dir.join("fill_pdf_merged_bun.pdf");
+    
+    std::fs::write(&temp_template, template_bytes)?;
+    std::fs::write(&temp_overlay, overlay_pdf)?;
+    
+    let script_path = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("merge_pdfs.ts");
+    
+    let mut cmd = Command::new("bun");
+    cmd.arg("run")
+        .arg(&script_path)
+        .arg("--template").arg(&temp_template)
+        .arg("--overlay").arg(&temp_overlay)
+        .arg("--output").arg(&temp_merged);
+    
+    if flatten {
+        cmd.arg("--flatten");
+    }
+    
+    let output = cmd.output()?;
+    
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        anyhow::bail!("Bun merge failed: {}", stderr);
+    }
+    
+    let merged = std::fs::read(&temp_merged)?;
+    
+    let _ = std::fs::remove_file(&temp_template);
+    let _ = std::fs::remove_file(&temp_overlay);
+    let _ = std::fs::remove_file(&temp_merged);
+    
+    Ok(merged)
+}
+
+fn check_bun() -> bool {
+    Command::new("bun")
+        .arg("--version")
+        .output()
+        .map(|o| o.status.success())
+        .unwrap_or(false)
 }
