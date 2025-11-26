@@ -39,9 +39,24 @@ fn ensure_bun_deps() -> anyhow::Result<()> {
     if !check_bun() {
         anyhow::bail!("Bun is not installed. Install from: https://bun.sh");
     }
-    
-    // Check pdf-lib (will auto-install via bun)
     println!("✓ Bun runtime available");
+    
+    // Check pdf-lib
+    if !check_pdf_lib() {
+        println!("⚠️  pdf-lib is not installed.");
+        print!("Would you like to install it now? (y/N): ");
+        io::stdout().flush()?;
+        
+        let mut input = String::new();
+        io::stdin().read_line(&mut input)?;
+        
+        if input.trim().to_lowercase() == "y" {
+            install_pdf_lib()?;
+        } else {
+            anyhow::bail!("pdf-lib is required. Install with: bun install pdf-lib");
+        }
+    }
+    
     Ok(())
 }
 
@@ -224,4 +239,35 @@ fn check_bun() -> bool {
         .output()
         .map(|o| o.status.success())
         .unwrap_or(false)
+}
+
+fn check_pdf_lib() -> bool {
+    Command::new("bun")
+        .arg("pm")
+        .arg("ls")
+        .output()
+        .map(|o| {
+            o.status.success() && 
+            String::from_utf8_lossy(&o.stdout).contains("pdf-lib")
+        })
+        .unwrap_or(false)
+}
+
+fn install_pdf_lib() -> anyhow::Result<()> {
+    println!("📦 Installing pdf-lib...");
+    
+    let output = Command::new("bun")
+        .arg("install")
+        .arg("pdf-lib")
+        .output()?;
+    
+    if output.status.success() {
+        println!("✓ pdf-lib installed successfully");
+        Ok(())
+    } else {
+        anyhow::bail!(
+            "Failed to install pdf-lib. Please install manually:\n\
+             bun install pdf-lib"
+        )
+    }
 }

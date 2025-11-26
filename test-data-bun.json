@@ -1,0 +1,22 @@
+[
+  {
+    "field_id": "applicant_name_1",
+    "page": 1,
+    "x": 57,
+    "y": 204,
+    "width": 164,
+    "height": 14,
+    "field_type": "text",
+    "value": "John Doe"
+  },
+  {
+    "field_id": "agency_name_1",
+    "page": 1,
+    "x": 411,
+    "y": 235,
+    "width": 150,
+    "height": 14,
+    "field_type": "text",
+    "value": "Test Agency Inc."
+  }
+]
