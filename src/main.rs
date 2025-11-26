@@ -167,7 +167,9 @@ async fn fill_pdf(
         }
     };
     
-    let template_doc = lopdf::Document::load_mem(&template_bytes)?;
+    // Load PDF document using Cursor (same as srv-ocr)
+    let template_doc = lopdf::Document::load_from(std::io::Cursor::new(&template_bytes))
+        .map_err(|e| anyhow::anyhow!("Failed to load PDF document: {}", e))?;
     let pdf_info = types::extract_pdf_info(&template_doc)?;
     
     // Load field data
