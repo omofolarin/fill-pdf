@@ -61,6 +61,10 @@ enum Commands {
         /// Merge backend: python (PyPDF2) or bun (pdf-lib)
         #[arg(long, default_value = "python")]
         merge_backend: String,
+        
+        /// Text overflow mode: overflow (default) or cutoff
+        #[arg(long, default_value = "overflow")]
+        text_overflow: String,
     },
     
     /// Cache management
@@ -85,8 +89,8 @@ async fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();
 
     match cli.command {
-        Commands::Fill { template, data, output, metadata, cache, cache_dir, cache_ttl, cache_refresh, keep_fields, merge_backend } => {
-            fill_pdf(template, data, output, metadata, cache, cache_dir, cache_ttl, cache_refresh, keep_fields, merge_backend).await?;
+        Commands::Fill { template, data, output, metadata, cache, cache_dir, cache_ttl, cache_refresh, keep_fields, merge_backend, text_overflow } => {
+            fill_pdf(template, data, output, metadata, cache, cache_dir, cache_ttl, cache_refresh, keep_fields, merge_backend, text_overflow).await?;
         }
         Commands::Cache { command } => {
             match command {
@@ -113,6 +117,7 @@ async fn fill_pdf(
     cache_refresh: bool,
     keep_fields: bool,
     merge_backend: String,
+    text_overflow: String,
 ) -> anyhow::Result<()> {
     // Check dependencies first
     merge::ensure_dependencies(&merge_backend)?;
@@ -179,7 +184,19 @@ async fn fill_pdf(
     
     // Load field data
     let json_data = std::fs::read_to_string(&data)?;
-    let field_data: Vec<FieldData> = serde_json::from_str(&json_data)?;
+    let mut field_data: Vec<FieldData> = serde_json::from_str(&json_data)?;
+    
+    // Apply global text_overflow to fields without explicit setting
+    let global_overflow = match text_overflow.as_str() {
+        "cutoff" => types::TextOverflow::Cutoff,
+        _ => types::TextOverflow::Overflow,
+    };
+    
+    for field in &mut field_data {
+        if field.text_overflow.is_none() {
+            field.text_overflow = Some(global_overflow.clone());
+        }
+    }
     
     // Fetch remote images/signatures
     println!("🖼️  Fetching remote images...");

@@ -53,6 +53,23 @@ pub struct FieldData {
     pub options: Option<Vec<String>>,
     #[serde(default)]
     pub fit_mode: Option<ImageFitMode>,
+    #[serde(default)]
+    pub text_overflow: Option<TextOverflow>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum TextOverflow {
+    /// Text can overflow beyond field boundaries (default)
+    Overflow,
+    /// Text is truncated at field boundaries
+    Cutoff,
+}
+
+impl Default for TextOverflow {
+    fn default() -> Self {
+        Self::Overflow
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

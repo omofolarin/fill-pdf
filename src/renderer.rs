@@ -215,6 +215,9 @@ impl PdfFieldRenderer {
         let char_width = base_font_size * 0.55;
         let text_width = text.len() as f32 * char_width;
         
+        // Check if cutoff mode is enabled
+        let use_cutoff = matches!(field.text_overflow.as_ref().unwrap_or(&crate::types::TextOverflow::Overflow), crate::types::TextOverflow::Cutoff);
+        
         if text_width <= width {
             let x_offset = match field.alignment.as_deref() {
                 Some("center") => (width - text_width) / 2.0,
@@ -292,10 +295,29 @@ impl PdfFieldRenderer {
             }
         }
         
-        // Fallback: render as-is if nothing else works
+        // Fallback: render as-is (overflow) or truncate (cutoff)
+        let final_text = if use_cutoff {
+            // Truncate text to fit within width
+            // Use slightly larger multiplier (0.6) for cutoff to fill the space better
+            let cutoff_char_width = base_font_size * 0.6;
+            let mut truncated = String::new();
+            let mut current_width = 0.0;
+            
+            for ch in text.chars() {
+                if current_width + cutoff_char_width > width {
+                    break;
+                }
+                truncated.push(ch);
+                current_width += cutoff_char_width;
+            }
+            truncated
+        } else {
+            text
+        };
+        
         content.set_font(self.font_name, base_font_size);
         content.next_line(pdf_x, pdf_y);
-        content.show(Str(text.as_bytes()));
+        content.show(Str(final_text.as_bytes()));
     }
 
     fn word_wrap(&self, text: &str, width: f32, font_size: f32) -> Vec<String> {

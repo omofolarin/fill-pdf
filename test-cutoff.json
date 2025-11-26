@@ -1,0 +1,12 @@
+[
+  {
+    "field_id": "test1",
+    "page": 1,
+    "x": 57,
+    "y": 204,
+    "width": 100,
+    "height": 14,
+    "field_type": "text",
+    "value": "This is a very long text that will definitely overflow the field boundaries"
+  }
+]
